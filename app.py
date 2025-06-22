@@ -3,7 +3,7 @@ import sqlite3
 from datetime import timedelta
 
 app = Flask(__name__)
-app.debug = True  # لتفعيل وضع التصحيح وعرض تفاصيل الخطأ
+app.debug = True  # تفعيل وضع التصحيح لعرض الأخطاء التفصيلية
 DB_FILE = "data.db"
 
 def init_db():
@@ -37,8 +37,9 @@ init_db()
 def index():
     with sqlite3.connect(DB_FILE) as conn:
         conn.row_factory = sqlite3.Row
-        timers = conn.execute("SELECT * FROM timers").fetchall()
-        durations = [row["final_duration"] for row in timers if row["final_duration"] is not None]
+        timers_raw = conn.execute("SELECT * FROM timers").fetchall()
+        
+        durations = [row["final_duration"] for row in timers_raw if row["final_duration"] is not None]
 
         total = sum(durations) if durations else 0
         avg = total // len(durations) if durations else 0
@@ -50,16 +51,23 @@ def index():
             "maximum": format_extended_duration(max_d)
         }
 
-        for row in timers:
-            row["duration_str"] = format_extended_duration(row["duration"])
-            row["final_str"] = format_extended_duration(row["final_duration"])
+        # تحويل sqlite3.Row إلى dict مع إضافة الحقول المحسوبة
+        timers = []
+        for row in timers_raw:
+            timers.append({
+                "id": row["id"],
+                "start": row["start"],
+                "duration": row["duration"],
+                "final_duration": row["final_duration"],
+                "duration_str": format_extended_duration(row["duration"]),
+                "final_str": format_extended_duration(row["final_duration"])
+            })
 
         return render_template("index.html", timers=timers, stats=stats)
 
 @app.route("/data", methods=["POST"])
 def add_data():
     data = request.get_json()
-    # تحقق من صحة البيانات قبل الإدخال
     try:
         start = data["start"]
         duration = int(data["duration"])
