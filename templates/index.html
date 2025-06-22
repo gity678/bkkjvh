@@ -1,64 +1,50 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>عدادات مترابطة</title>
   <style>
-    body { font-family: Arial; background: #f4f4f4; padding: 20px; }
+    body { font-family: Arial; padding: 20px; background: #f4f4f4; }
     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
     th, td { border: 1px solid #aaa; padding: 10px; text-align: center; }
-    th { background-color: #ddd; }
-    button { padding: 6px 12px; }
-    input[type="text"] { width: 100%; padding: 6px; }
+    th { background-color: #eee; }
+    button { padding: 6px 10px; }
   </style>
 </head>
 <body>
   <h2>العدادات</h2>
-  <table id="timerTable">
+  <table>
     <thead>
       <tr>
         <th>تاريخ البداية</th>
         <th>المدة الحالية</th>
+        <th>تم الكسر</th>
         <th>المدة النهائية</th>
+        <th>حذف</th>
       </tr>
     </thead>
     <tbody>
-      <!-- صفوف من الخادم -->
       {% for timer in timers %}
-        <tr>
-          <td>{{ timer.start }}</td>
-          <td>{{ timer.duration }}</td>
-          <td>{{ timer.end }}</td>
-        </tr>
+      <tr data-id="{{ timer.id }}">
+        <td>{{ timer.start }}</td>
+        <td>{{ timer.duration }}</td>
+        <td>تم الكسر</td>
+        <td>{{ timer.final_duration }}</td>
+        <td><button onclick="deleteRow({{ timer.id }})">🗑 حذف</button></td>
+      </tr>
       {% endfor %}
-      <!-- صف جديد لإضافة عداد -->
       <tr>
         <td><button onclick="startTimer(this)">تاريخ اللحظة</button></td>
         <td class="duration">--:--:--</td>
-        <td><input type="text" placeholder="اكتب المدة النهائية" onblur="saveTimer(this)" /></td>
+        <td><button onclick="stopTimer(this)">تم الكسر</button></td>
+        <td class="final">--:--:--</td>
+        <td></td>
       </tr>
     </tbody>
   </table>
 
   <script>
     let startTimes = new WeakMap();
-
-    function startTimer(btn) {
-      const now = new Date();
-      const td = btn.parentElement;
-      td.innerText = now.toISOString(); // تحويل الزر إلى التاريخ
-      startTimes.set(td, now);
-
-      const row = td.parentElement;
-      const durationCell = row.querySelector(".duration");
-
-      // تحديث المدة كل ثانية
-      const interval = setInterval(() => {
-        const start = startTimes.get(td);
-        const diff = Date.now() - start.getTime();
-        durationCell.textContent = formatDuration(diff);
-      }, 1000);
-    }
 
     function formatDuration(ms) {
       const totalSec = Math.floor(ms / 1000);
@@ -68,33 +54,55 @@
       return `${hrs}:${min}:${sec}`;
     }
 
-    function saveTimer(input) {
-      const row = input.parentElement.parentElement;
-      const start = row.cells[0].innerText;
+    function startTimer(btn) {
+      const td = btn.parentElement;
+      const now = new Date();
+      td.innerText = now.toISOString();
+      startTimes.set(td, now);
+
+      const row = td.parentElement;
+      const durationCell = row.querySelector(".duration");
+
+      const interval = setInterval(() => {
+        const start = startTimes.get(td);
+        if (!start) return;
+        const diff = Date.now() - start.getTime();
+        durationCell.textContent = formatDuration(diff);
+      }, 1000);
+    }
+
+    function stopTimer(btn) {
+      const row = btn.parentElement.parentElement;
+      const startText = row.cells[0].innerText;
       const duration = row.cells[1].innerText;
-      const end = input.value;
+      const startDate = new Date(startText);
+      const now = new Date();
+      const diff = now.getTime() - startDate.getTime();
+      const finalDuration = formatDuration(diff);
+      row.querySelector(".final").innerText = finalDuration;
 
-      if (!start || !end || !duration.includes(":")) {
-        alert("أكمل البيانات أولاً");
-        return;
-      }
-
-      // إرسال البيانات إلى الخادم
       fetch("/data", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: "عداد",
-          start: start,
-          end: end,
-          duration: duration
+          title: "timer",
+          start: startText,
+          duration: duration,
+          final_duration: finalDuration
         })
       })
       .then(res => res.json())
       .then(res => {
-        alert("تم حفظ البيانات ✔");
-        location.reload(); // إعادة تحميل الصفحة لإظهار الصف الجديد
+        alert("✔ تم حفظ العداد");
+        location.reload();
       });
+    }
+
+    function deleteRow(id) {
+      if (!confirm("هل تريد حذف هذا الصف؟")) return;
+      fetch("/delete/" + id, { method: "POST" })
+        .then(res => res.json())
+        .then(res => location.reload());
     }
   </script>
 </body>
