@@ -1,36 +1,50 @@
-import os
-import sqlite3
+import pymysql
+from pymysql.cursors import DictCursor
 
-DB_DIR = "database"
-DB_FILE = os.path.join(DB_DIR, "data.db")
+DB_CONFIG = {
+    "host": "your-mysql-host",
+    "user": "your-username",
+    "password": "your-password",
+    "database": "your-database",
+    "cursorclass": DictCursor
+}
+
+def get_connection():
+    return pymysql.connect(**DB_CONFIG)
 
 def init_db():
-    os.makedirs(DB_DIR, exist_ok=True)
-    with sqlite3.connect(DB_FILE) as conn:
-        conn.execute('''
+    conn = get_connection()
+    with conn.cursor() as cursor:
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS timers (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                start TEXT,
-                duration INTEGER,
-                final_duration INTEGER
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                start VARCHAR(255),
+                duration INT,
+                final_duration INT
             )
         ''')
-        conn.commit()
+    conn.commit()
+    conn.close()
 
 def insert_timer(start, duration, final_duration):
-    with sqlite3.connect(DB_FILE) as conn:
-        conn.execute(
-            "INSERT INTO timers (start, duration, final_duration) VALUES (?, ?, ?)",
-            (start, duration, final_duration)
-        )
-        conn.commit()
+    conn = get_connection()
+    with conn.cursor() as cursor:
+        sql = "INSERT INTO timers (start, duration, final_duration) VALUES (%s, %s, %s)"
+        cursor.execute(sql, (start, duration, final_duration))
+    conn.commit()
+    conn.close()
 
 def fetch_all_timers():
-    with sqlite3.connect(DB_FILE) as conn:
-        conn.row_factory = sqlite3.Row
-        return conn.execute("SELECT * FROM timers").fetchall()
+    conn = get_connection()
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT * FROM timers")
+        results = cursor.fetchall()
+    conn.close()
+    return results
 
 def delete_timer(timer_id):
-    with sqlite3.connect(DB_FILE) as conn:
-        conn.execute("DELETE FROM timers WHERE id = ?", (timer_id,))
-        conn.commit()
+    conn = get_connection()
+    with conn.cursor() as cursor:
+        cursor.execute("DELETE FROM timers WHERE id = %s", (timer_id,))
+    conn.commit()
+    conn.close()
