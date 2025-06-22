@@ -3,7 +3,7 @@ import sqlite3
 from datetime import timedelta
 
 app = Flask(__name__)
-app.debug = True  # تفعيل وضع التصحيح لعرض الأخطاء التفصيلية
+app.debug = True
 DB_FILE = "data.db"
 
 def init_db():
@@ -39,19 +39,19 @@ def index():
         conn.row_factory = sqlite3.Row
         timers_raw = conn.execute("SELECT * FROM timers").fetchall()
         
-        durations = [row["final_duration"] for row in timers_raw if row["final_duration"] is not None]
+        final_durations = [row["final_duration"] for row in timers_raw if row["final_duration"] is not None]
 
-        total = sum(durations) if durations else 0
-        avg = total // len(durations) if durations else 0
-        max_d = max(durations) if durations else 0
+        count = len(final_durations)
+        total = sum(final_durations) if final_durations else 0
+        avg = total // count if count > 0 else 0
+        max_d = max(final_durations) if final_durations else 0
 
         stats = {
-            "total": format_extended_duration(total),
+            "count": count,
             "average": format_extended_duration(avg),
             "maximum": format_extended_duration(max_d)
         }
 
-        # تحويل sqlite3.Row إلى dict مع إضافة الحقول المحسوبة
         timers = []
         for row in timers_raw:
             timers.append({
