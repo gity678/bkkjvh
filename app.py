@@ -3,6 +3,7 @@ import sqlite3
 from datetime import timedelta
 
 app = Flask(__name__)
+app.debug = True  # لتفعيل وضع التصحيح وعرض تفاصيل الخطأ
 DB_FILE = "data.db"
 
 def init_db():
@@ -37,7 +38,7 @@ def index():
     with sqlite3.connect(DB_FILE) as conn:
         conn.row_factory = sqlite3.Row
         timers = conn.execute("SELECT * FROM timers").fetchall()
-        durations = [row["final_duration"] for row in timers if row["final_duration"]]
+        durations = [row["final_duration"] for row in timers if row["final_duration"] is not None]
 
         total = sum(durations) if durations else 0
         avg = total // len(durations) if durations else 0
@@ -58,9 +59,17 @@ def index():
 @app.route("/data", methods=["POST"])
 def add_data():
     data = request.get_json()
+    # تحقق من صحة البيانات قبل الإدخال
+    try:
+        start = data["start"]
+        duration = int(data["duration"])
+        final_duration = int(data["final_duration"])
+    except (KeyError, ValueError, TypeError):
+        return jsonify({"status": "error", "message": "بيانات غير صحيحة"}), 400
+
     with sqlite3.connect(DB_FILE) as conn:
         conn.execute("INSERT INTO timers (start, duration, final_duration) VALUES (?, ?, ?)",
-                     (data["start"], data["duration"], data["final_duration"]))
+                     (start, duration, final_duration))
         conn.commit()
     return jsonify({"status": "ok"})
 
