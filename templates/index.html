@@ -2,14 +2,100 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <title>عرض العدادات</title>
+  <title>عدادات مترابطة</title>
+  <style>
+    body { font-family: Arial; background: #f4f4f4; padding: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #aaa; padding: 10px; text-align: center; }
+    th { background-color: #ddd; }
+    button { padding: 6px 12px; }
+    input[type="text"] { width: 100%; padding: 6px; }
+  </style>
 </head>
 <body>
-  <h2>العدادات المخزنة</h2>
-  <ul>
-    {% for timer in timers %}
-      <li><strong>{{ timer.title }}</strong>: من {{ timer.start }} إلى {{ timer.end }}</li>
-    {% endfor %}
-  </ul>
+  <h2>العدادات</h2>
+  <table id="timerTable">
+    <thead>
+      <tr>
+        <th>تاريخ البداية</th>
+        <th>المدة الحالية</th>
+        <th>المدة النهائية</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- صفوف من الخادم -->
+      {% for timer in timers %}
+        <tr>
+          <td>{{ timer.start }}</td>
+          <td>{{ timer.duration }}</td>
+          <td>{{ timer.end }}</td>
+        </tr>
+      {% endfor %}
+      <!-- صف جديد لإضافة عداد -->
+      <tr>
+        <td><button onclick="startTimer(this)">تاريخ اللحظة</button></td>
+        <td class="duration">--:--:--</td>
+        <td><input type="text" placeholder="اكتب المدة النهائية" onblur="saveTimer(this)" /></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <script>
+    let startTimes = new WeakMap();
+
+    function startTimer(btn) {
+      const now = new Date();
+      const td = btn.parentElement;
+      td.innerText = now.toISOString(); // تحويل الزر إلى التاريخ
+      startTimes.set(td, now);
+
+      const row = td.parentElement;
+      const durationCell = row.querySelector(".duration");
+
+      // تحديث المدة كل ثانية
+      const interval = setInterval(() => {
+        const start = startTimes.get(td);
+        const diff = Date.now() - start.getTime();
+        durationCell.textContent = formatDuration(diff);
+      }, 1000);
+    }
+
+    function formatDuration(ms) {
+      const totalSec = Math.floor(ms / 1000);
+      const hrs = String(Math.floor(totalSec / 3600)).padStart(2, '0');
+      const min = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+      const sec = String(totalSec % 60).padStart(2, '0');
+      return `${hrs}:${min}:${sec}`;
+    }
+
+    function saveTimer(input) {
+      const row = input.parentElement.parentElement;
+      const start = row.cells[0].innerText;
+      const duration = row.cells[1].innerText;
+      const end = input.value;
+
+      if (!start || !end || !duration.includes(":")) {
+        alert("أكمل البيانات أولاً");
+        return;
+      }
+
+      // إرسال البيانات إلى الخادم
+      fetch("/data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: "عداد",
+          start: start,
+          end: end,
+          duration: duration
+        })
+      })
+      .then(res => res.json())
+      .then(res => {
+        alert("تم حفظ البيانات ✔");
+        location.reload(); // إعادة تحميل الصفحة لإظهار الصف الجديد
+      });
+    }
+  </script>
 </body>
 </html>
