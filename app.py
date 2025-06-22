@@ -9,10 +9,9 @@ def init_db():
         conn.execute('''
             CREATE TABLE IF NOT EXISTS timers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT NOT NULL,
                 start TEXT,
-                end TEXT,
-                duration TEXT
+                duration TEXT,
+                final_duration TEXT
             )
         ''')
 init_db()
@@ -24,21 +23,23 @@ def index():
         rows = conn.execute("SELECT * FROM timers").fetchall()
         return render_template("index.html", timers=rows)
 
-@app.route("/data", methods=["GET"])
-def get_data():
-    with sqlite3.connect(DB_FILE) as conn:
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute("SELECT * FROM timers").fetchall()
-        return jsonify([dict(row) for row in rows])
-
 @app.route("/data", methods=["POST"])
 def add_data():
     data = request.get_json()
     with sqlite3.connect(DB_FILE) as conn:
-        conn.execute("INSERT INTO timers (title, start, end, duration) VALUES (?, ?, ?, ?)",
-                     (data["title"], data["start"], data["end"], data["duration"]))
+        conn.execute('''
+            INSERT INTO timers (start, duration, final_duration)
+            VALUES (?, ?, ?)
+        ''', (data["start"], data["duration"], data["final_duration"]))
         conn.commit()
-    return jsonify({"status": "تمت الإضافة بنجاح"})
+    return jsonify({"status": "تم الحفظ"})
+
+@app.route("/delete/<int:id>", methods=["POST"])
+def delete_timer(id):
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.execute("DELETE FROM timers WHERE id = ?", (id,))
+        conn.commit()
+    return jsonify({"status": "تم الحذف"})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
