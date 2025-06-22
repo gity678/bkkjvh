@@ -11,7 +11,8 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 title TEXT NOT NULL,
                 start TEXT,
-                end TEXT
+                end TEXT,
+                duration TEXT
             )
         ''')
 init_db()
@@ -34,8 +35,8 @@ def get_data():
 def add_data():
     data = request.get_json()
     with sqlite3.connect(DB_FILE) as conn:
-        conn.execute("INSERT INTO timers (title, start, end) VALUES (?, ?, ?)",
-                     (data["title"], data["start"], data["end"]))
+        conn.execute("INSERT INTO timers (title, start, end, duration) VALUES (?, ?, ?, ?)",
+                     (data["title"], data["start"], data["end"], data["duration"]))
         conn.commit()
     return jsonify({"status": "تمت الإضافة بنجاح"})
 
