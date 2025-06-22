@@ -8,7 +8,7 @@
     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
     th, td { border: 1px solid #ccc; padding: 10px; text-align: center; }
     th { background: #eee; }
-    button { padding: 6px 12px; }
+    button { padding: 6px 12px; cursor: pointer; }
     .footer-row td { background: #dff0d8; font-weight: bold; }
   </style>
 </head>
@@ -104,7 +104,14 @@
         })
       })
       .then(res => res.json())
-      .then(() => location.reload());
+      .then(data => {
+        if (data.status === "ok") {
+          location.reload();
+        } else {
+          alert("حدث خطأ أثناء الحفظ: " + (data.message || "خطأ غير معروف"));
+        }
+      })
+      .catch(() => alert("فشل الاتصال بالخادم"));
     }
 
     function deleteRow(id) {
